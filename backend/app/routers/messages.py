@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from app.database import get_db
 from app.models.message import Message
 from app.models.user import User
-from app.schemas.message import MessageSend, MessageOut
+from app.schemas.message import MessageOut
 from app.core.security import get_current_user, decode_token
 from app.ws.manager import manager
 from jose import JWTError
@@ -14,7 +14,6 @@ router = APIRouter()
 
 @router.websocket("/ws/{token}")
 async def websocket_endpoint(token: str, websocket: WebSocket, db: AsyncSession = Depends(get_db)):
-    # Authenticate user from token passed in URL
     try:
         payload = decode_token(token)
         user_id = payload.get("sub")
@@ -25,10 +24,8 @@ async def websocket_endpoint(token: str, websocket: WebSocket, db: AsyncSession 
         await websocket.close(code=4001)
         return
 
-    # Connect user
     await manager.connect(user_id, websocket)
 
-    # Deliver any offline messages they missed
     result = await db.execute(
         select(Message).where(
             Message.receiver_id == user_id,
@@ -45,21 +42,21 @@ async def websocket_endpoint(token: str, websocket: WebSocket, db: AsyncSession 
             "created_at": str(msg.created_at)
         })
         msg.delivered = True
+        await manager.send_to_user(msg.sender_id, {
+            "type": "ack",
+            "message_id": msg.id,
+            "status": "delivered"
+        })
     await db.commit()
 
     try:
         while True:
-            # Wait for incoming message from this user
             data = await websocket.receive_text()
             payload_data = json.loads(data)
-
             receiver_id = payload_data.get("receiver_id")
             content = payload_data.get("content")
-
             if not receiver_id or not content:
                 continue
-
-            # Save message to DB
             message = Message(
                 sender_id=user_id,
                 receiver_id=receiver_id,
@@ -70,8 +67,6 @@ async def websocket_endpoint(token: str, websocket: WebSocket, db: AsyncSession 
             db.add(message)
             await db.commit()
             await db.refresh(message)
-
-            # Try to deliver in real time
             delivered = await manager.send_to_user(receiver_id, {
                 "type": "message",
                 "id": message.id,
@@ -79,25 +74,20 @@ async def websocket_endpoint(token: str, websocket: WebSocket, db: AsyncSession 
                 "content": content,
                 "created_at": str(message.created_at)
             })
-
             if delivered:
-                # Mark as delivered
                 message.delivered = True
                 await db.commit()
-                # Send ACK back to sender — single tick becomes double tick
                 await manager.send_to_user(user_id, {
                     "type": "ack",
                     "message_id": message.id,
                     "status": "delivered"
-              })
+                })
             else:
-                # Receiver offline — message saved, will deliver on reconnect
                 await manager.send_to_user(user_id, {
                     "type": "ack",
                     "message_id": message.id,
                     "status": "sent"
                 })
-
     except WebSocketDisconnect:
         manager.disconnect(user_id)
 

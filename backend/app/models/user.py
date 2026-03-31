@@ -1,9 +1,7 @@
 from sqlalchemy import String, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 import uuid
-
 
 class User(Base):
     __tablename__ = "users"
@@ -13,5 +11,3 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now())
-
-    messages = relationship("Message", back_populates="author")

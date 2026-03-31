@@ -1,32 +1,119 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from sqlalchemy import select, or_
 from app.database import get_db
 from app.models.message import Message
 from app.models.user import User
-from app.schemas.message import MessageCreate, MessageRead
+from app.schemas.message import MessageSend, MessageOut
+from app.core.security import get_current_user, decode_token
+from app.ws.manager import manager
+from jose import JWTError
+import json
 
-router = APIRouter(prefix="/messages", tags=["messages"])
+router = APIRouter()
 
+@router.websocket("/ws/{token}")
+async def websocket_endpoint(token: str, websocket: WebSocket, db: AsyncSession = Depends(get_db)):
+    # Authenticate user from token passed in URL
+    try:
+        payload = decode_token(token)
+        user_id = payload.get("sub")
+        if not user_id:
+            await websocket.close(code=4001)
+            return
+    except JWTError:
+        await websocket.close(code=4001)
+        return
 
-@router.get("", response_model=list[MessageRead])
-async def list_messages(db: AsyncSession = Depends(get_db)) -> list[Message]:
-    result = await db.execute(select(Message).order_by(Message.created_at.desc()).limit(100))
-    return list(result.scalars().all())
+    # Connect user
+    await manager.connect(user_id, websocket)
 
-
-@router.post("", response_model=MessageRead, status_code=201)
-async def create_message(
-    payload: MessageCreate, db: AsyncSession = Depends(get_db)
-) -> Message:
-    # TODO: replace with current user from JWT
-    first = await db.execute(select(User).limit(1))
-    author = first.scalar_one_or_none()
-    if not author:
-        raise HTTPException(status_code=400, detail="No users yet; register first")
-    msg = Message(body=payload.body, author_id=author.id)
-    db.add(msg)
+    # Deliver any offline messages they missed
+    result = await db.execute(
+        select(Message).where(
+            Message.receiver_id == user_id,
+            Message.delivered == False
+        )
+    )
+    offline_messages = result.scalars().all()
+    for msg in offline_messages:
+        await manager.send_to_user(user_id, {
+            "type": "message",
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "content": msg.content,
+            "created_at": str(msg.created_at)
+        })
+        msg.delivered = True
     await db.commit()
-    await db.refresh(msg)
-    return msg
+
+    try:
+        while True:
+            # Wait for incoming message from this user
+            data = await websocket.receive_text()
+            payload_data = json.loads(data)
+
+            receiver_id = payload_data.get("receiver_id")
+            content = payload_data.get("content")
+
+            if not receiver_id or not content:
+                continue
+
+            # Save message to DB
+            message = Message(
+                sender_id=user_id,
+                receiver_id=receiver_id,
+                content=content,
+                delivered=False,
+                read=False
+            )
+            db.add(message)
+            await db.commit()
+            await db.refresh(message)
+
+            # Try to deliver in real time
+            delivered = await manager.send_to_user(receiver_id, {
+                "type": "message",
+                "id": message.id,
+                "sender_id": user_id,
+                "content": content,
+                "created_at": str(message.created_at)
+            })
+
+            if delivered:
+                # Mark as delivered
+                message.delivered = True
+                await db.commit()
+                # Send ACK back to sender — single tick becomes double tick
+                await manager.send_to_user(user_id, {
+                    "type": "ack",
+                    "message_id": message.id,
+                    "status": "delivered"
+              })
+            else:
+                # Receiver offline — message saved, will deliver on reconnect
+                await manager.send_to_user(user_id, {
+                    "type": "ack",
+                    "message_id": message.id,
+                    "status": "sent"
+                })
+
+    except WebSocketDisconnect:
+        manager.disconnect(user_id)
+
+
+@router.get("/history/{other_user_id}", response_model=list[MessageOut])
+async def get_chat_history(
+    other_user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Message).where(
+            or_(
+                (Message.sender_id == current_user.id) & (Message.receiver_id == other_user_id),
+                (Message.sender_id == other_user_id) & (Message.receiver_id == current_user.id)
+            )
+        ).order_by(Message.created_at)
+    )
+    return result.scalars().all()

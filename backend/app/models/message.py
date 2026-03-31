@@ -1,21 +1,15 @@
-from datetime import datetime
-
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+from sqlalchemy import String, DateTime, Boolean, func
+from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
-
+import uuid
 
 class Message(Base):
     __tablename__ = "messages"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    body: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    author_id: Mapped[str] = mapped_column(
-        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-
-    author = relationship("User", back_populates="messages")
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    sender_id: Mapped[str] = mapped_column(String, nullable=False)
+    receiver_id: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(String, nullable=False)
+    delivered: Mapped[bool] = mapped_column(Boolean, default=False)
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[str] = mapped_column(DateTime, server_default=func.now())

@@ -1,0 +1,23 @@
+This is PingBox — a WhatsApp-inspired distributed messaging system.
+
+Tech stack:
+- Backend: FastAPI (Python 3.13), WebSockets, PostgreSQL, Redis, MinIO
+- Frontend: React + TypeScript + Tailwind CSS
+- Auth: JWT (access + refresh tokens)
+- Real-time: WebSockets via FastAPI
+- Object storage: MinIO (S3-compatible)
+- Cache: Redis (presence, TTL, rate limiting)
+- Package manager: uv (not pip)
+- Containerization: Docker Compose
+
+Conventions:
+- All backend code lives in backend/app/
+- Use async/await everywhere in FastAPI
+- SQLAlchemy async ORM for database models
+- Pydantic v2 for schemas
+- Environment variables via pydantic-settings
+- Never hardcode secrets
+- Every router has its own file in routers/
+- WebSocket connection manager lives in ws/manager.py
+
+Current phase: Phase 1 — Auth + real-time messaging + ACK chain

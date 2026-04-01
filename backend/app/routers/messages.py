@@ -17,6 +17,7 @@ async def websocket_endpoint(token: str, websocket: WebSocket, db: AsyncSession 
     try:
         payload = decode_token(token)
         user_id = payload.get("sub")
+        username = payload.get("username")
         if not user_id:
             await websocket.close(code=4001)
             return
@@ -53,6 +54,52 @@ async def websocket_endpoint(token: str, websocket: WebSocket, db: AsyncSession 
         while True:
             data = await websocket.receive_text()
             payload_data = json.loads(data)
+            msg_type = payload_data.get("type", "message")
+
+            if msg_type == "typing_start":
+                receiver_id = payload_data.get("receiver_id")
+                if receiver_id:
+                    await manager.send_to_user(receiver_id, {
+                        "type": "typing_start",
+                        "sender_id": user_id,
+                        "username": username
+                    })
+                continue
+
+            if msg_type == "typing_stop":
+                receiver_id = payload_data.get("receiver_id")
+                if receiver_id:
+                    await manager.send_to_user(receiver_id, {
+                        "type": "typing_stop",
+                        "sender_id": user_id,
+                        "username": username
+                    })
+                continue
+
+            if msg_type == "read_receipt":
+                sender_id = payload_data.get("sender_id")
+                if sender_id:
+                    from sqlalchemy import and_
+                    result = await db.execute(
+                        select(Message).where(
+                            and_(
+                                Message.sender_id == sender_id,
+                                Message.receiver_id == user_id,
+                                Message.read == False
+                            )
+                        )
+                    )
+                    unread_messages = result.scalars().all()
+                    for msg in unread_messages:
+                        msg.read = True
+                        await manager.send_to_user(sender_id, {
+                            "type": "ack",
+                            "message_id": msg.id,
+                            "status": "read"
+                        })
+                    await db.commit()
+                continue
+
             receiver_id = payload_data.get("receiver_id")
             content = payload_data.get("content")
             if not receiver_id or not content:
@@ -72,7 +119,8 @@ async def websocket_endpoint(token: str, websocket: WebSocket, db: AsyncSession 
                 "id": message.id,
                 "sender_id": user_id,
                 "content": content,
-                "created_at": str(message.created_at)
+                "created_at": str(message.created_at),
+                "username": username
             })
             if delivered:
                 message.delivered = True

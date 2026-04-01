@@ -1,5 +1,4 @@
-from app.models.message import Message
-from app.models.status import UserStatus
 from app.models.user import User
+from app.models.message import Message
 
-__all__ = ["User", "Message", "UserStatus"]
+__all__ = ["User", "Message"]

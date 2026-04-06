@@ -3,7 +3,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+)
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import Token, UserLogin, UserOut, UserRegister
@@ -86,3 +91,16 @@ async def get_me(current_user: User = Depends(get_current_user)):
         username=current_user.username,
         email=current_user.email
     )
+
+
+@router.get("/users", response_model=list[UserOut])
+async def list_users(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """All registered users (for contact list). Caller should filter out self."""
+    result = await db.execute(select(User).order_by(User.username))
+    rows = result.scalars().all()
+    return [
+        UserOut(id=str(u.id), username=u.username, email=u.email) for u in rows
+    ]

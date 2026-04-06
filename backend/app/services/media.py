@@ -5,10 +5,10 @@ import uuid
 import io
 
 client = Minio(
-    settings.minio_endpoint,
-    access_key=settings.minio_access_key,
-    secret_key=settings.minio_secret_key,
-    secure=False
+    settings.MINIO_ENDPOINT,
+    access_key=settings.MINIO_ACCESS_KEY,
+    secret_key=settings.MINIO_SECRET_KEY,
+    secure=False,
 )
 
 BUCKET = "pingbox-media"
@@ -42,5 +42,5 @@ async def upload_file(file_bytes: bytes, filename: str, content_type: str) -> st
         length=len(file_bytes),
         content_type=content_type
     )
-    url = f"http://{settings.minio_endpoint}/{BUCKET}/{object_name}"
+    url = f"http://{settings.MINIO_ENDPOINT}/{BUCKET}/{object_name}"
     return url

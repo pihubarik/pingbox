@@ -3,12 +3,17 @@ import { useChatStore } from '../store/chatStore'
 import { useAuthStore } from '../store/authStore'
 import { api } from '../utils/api'
 import MessageBubble from './MessageBubble'
-import { useWebSocket } from '../hooks/useWebSocket'
 
-export default function ChatWindow() {
+interface Props {
+  sendMessage: (receiverId: string, content: string) => void
+  sendTypingStart: (receiverId: string) => void
+  sendTypingStop: (receiverId: string) => void
+  sendReadReceipt: (senderId: string) => void
+}
+
+export default function ChatWindow({ sendMessage, sendTypingStart, sendTypingStop, sendReadReceipt }: Props) {
   const { activeContact, getMessages, addMessage, typingUsers } = useChatStore()
   const user = useAuthStore(state => state.user)
-  const { sendMessage, sendTypingStart, sendTypingStop, sendReadReceipt } = useWebSocket()
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)

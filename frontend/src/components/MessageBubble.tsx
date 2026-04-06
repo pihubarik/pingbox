@@ -22,7 +22,7 @@ export default function MessageBubble({ message }: Props) {
       <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow-sm ${
         isMe ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm'
       }`}>
-   e && (
+        {!isMe && (
           <p className="text-xs font-semibold text-blue-500 mb-1">{message.username}</p>
         )}
         <p className="text-sm leading-relaxed">{message.content}</p>

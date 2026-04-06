@@ -1,23 +1,14 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-    app_name: str = "Pingbox"
-    debug: bool = False
-
-    # postgresql+asyncpg://user:pass@host:5432/dbname — use `postgres` as host in Docker
-    database_url: str = "postgresql+asyncpg://pingbox:pingbox123@localhost:5432/pingbox"
-
-    redis_url: str = "redis://localhost:6379"
-    minio_endpoint: str = "localhost:9000"
-    minio_access_key: str = "minioadmin"
-    minio_secret_key: str = "minioadmin123"
-
-    secret_key: str = "supersecretkey123"
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
-
+    DEBUG: bool = False
+    DATABASE_URL: str = "postgresql+asyncpg://pingbox:pingbox123@localhost:5432/pingbox"
+    REDIS_URL: str = "redis://localhost:6379"
+    MINIO_ENDPOINT: str = "localhost:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin123"
+    SECRET_KEY: str = "supersecretkey123"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
 settings = Settings()

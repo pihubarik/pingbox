@@ -21,3 +21,14 @@ Conventions:
 - WebSocket connection manager lives in ws/manager.py
 
 Current phase: Phase 1 — Auth + real-time messaging + ACK chain
+
+CRITICAL RULES - NEVER VIOLATE:
+- NEVER auto-edit or rewrite these files unless explicitly told to:
+  * app/main.py
+  * app/core/config.py
+  * app/core/security.py
+- NEVER change uppercase settings keys to lowercase
+- NEVER switch DATABASE_URL to sqlite
+- NEVER add new routers to main.py automatically
+- ALWAYS ask before modifying any existing working file
+- ONLY create or edit files that are explicitly requested

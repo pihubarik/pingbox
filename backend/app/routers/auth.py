@@ -44,3 +44,13 @@ async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: User = Depends(get_current_user)):
     return UserOut(id=str(current_user.id), username=current_user.username, email=current_user.email)
+
+
+@router.get("/users")
+async def get_users(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    return [{"id": str(u.id), "username": u.username, "email": u.email} for u in users]

@@ -79,7 +79,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return get().groupMessages[groupId] || []
   },
 
-  setActiveContact: (contact) => set({ activeContact: contact }),
+  setActiveContact: (contact) => set({ activeContact: contact, activeGroup: null }),
 
   addMessage: (message, contactId) => set((state) => {
     const existing = state.messagesByContact[contactId] || []

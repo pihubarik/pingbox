@@ -13,5 +13,3 @@ class MessageOut(BaseModel):
     delivered: bool
     read: bool
     created_at: datetime
-
-    model_config = {"from_attributes": True}

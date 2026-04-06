@@ -46,6 +46,18 @@ export function useWebSocket() {
       if (data.type === 'typing_stop') {
         setTyping(data.sender_id, false)
       }
+
+      if (data.type === 'group_message') {
+        const { addGroupMessage } = useChatStore.getState()
+        addGroupMessage({
+          id: data.message_id,
+          sender_id: data.sender_id,
+          content: data.content,
+          created_at: data.created_at,
+          username: data.username,
+          status: 'delivered'
+        }, data.group_id)
+      }
     }
 
     ws.current.onclose = () => {

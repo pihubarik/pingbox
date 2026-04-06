@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import auth, messages, media, status
+from app.routers import auth, messages, media, status, groups
 
 app = FastAPI(title="PingBox API")
 
@@ -22,6 +22,7 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(messages.router, prefix="/messages", tags=["messages"])
 app.include_router(media.router, prefix="/media", tags=["media"])
 app.include_router(status.router, prefix="/status", tags=["status"])
+app.include_router(groups.router, prefix="/groups", tags=["groups"])
 
 @app.get("/health")
 async def health():

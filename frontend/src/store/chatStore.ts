@@ -19,11 +19,22 @@ export interface Contact {
   typing?: boolean
 }
 
+export interface Group {
+  id: string
+  name: string
+  created_by: string
+  members?: string[]
+}
+
 interface ChatState {
   messagesByContact: Record<string, Message[]>
   contacts: Contact[]
   activeContact: Contact | null
   typingUsers: Record<string, boolean>
+
+  groups: Group[]
+  activeGroup: Group | null
+  groupMessages: Record<string, Message[]>
 
   setActiveContact: (contact: Contact) => void
   addMessage: (message: Message, contactId: string) => void
@@ -31,6 +42,11 @@ interface ChatState {
   setContacts: (contacts: Contact[]) => void
   setTyping: (userId: string, isTyping: boolean) => void
   getMessages: (contactId: string) => Message[]
+
+  setGroups: (groups: Group[]) => void
+  setActiveGroup: (group: Group | null) => void
+  addGroupMessage: (message: Message, groupId: string) => void
+  getGroupMessages: (groupId: string) => Message[]
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -38,6 +54,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
   contacts: [],
   activeContact: null,
   typingUsers: {},
+
+  groups: [],
+  activeGroup: null,
+  groupMessages: {},
+
+  setGroups: (groups) => set({ groups }),
+
+  setActiveGroup: (group) => set({ activeGroup: group, activeContact: null }),
+
+  addGroupMessage: (message, groupId) => set((state) => {
+    const existing = state.groupMessages[groupId] || []
+    const isDuplicate = existing.some(m => m.id === message.id)
+    if (isDuplicate) return state
+    return {
+      groupMessages: {
+        ...state.groupMessages,
+        [groupId]: [...existing, message]
+      }
+    }
+  }),
+
+  getGroupMessages: (groupId) => {
+    return get().groupMessages[groupId] || []
+  },
 
   setActiveContact: (contact) => set({ activeContact: contact }),
 
